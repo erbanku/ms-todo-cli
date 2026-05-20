@@ -13,6 +13,7 @@ from todocli.utils.recurrence_util import (
     parse_recurrence,
     InvalidRecurrenceExpression,
 )
+from todocli.models.todotask import TaskImportance, TaskStatus
 
 
 class InvalidTaskPath(Exception):
@@ -111,6 +112,60 @@ def rm(args):
     wrapper.remove_task(task_list, try_parse_as_int(name))
 
 
+def show(args):
+    task_list, name = parse_task_path(args.task_name, getattr(args, "list", None))
+    task = wrapper.get_task(list_name=task_list, task_name=try_parse_as_int(name))
+    print(task)
+
+
+def update(args):
+    task_list, name = parse_task_path(args.task_name, getattr(args, "list", None))
+
+    reminder_datetime = None
+    if args.reminder is not None:
+        reminder_datetime = parse_datetime(args.reminder)
+
+    due_datetime = None
+    if args.due is not None:
+        due_datetime = parse_datetime(args.due)
+
+    wrapper.update_task(
+        list_name=task_list,
+        task_name=try_parse_as_int(name),
+        new_title=args.title,
+        body=args.body,
+        importance=args.importance,
+        reminder_datetime=reminder_datetime,
+        due_datetime=due_datetime,
+        status=args.status,
+    )
+
+
+def rml(args):
+    wrapper.delete_list(args.list_name)
+
+
+def attach(args):
+    task_list, name = parse_task_path(args.task_name, getattr(args, "list", None))
+    wrapper.add_attachment(
+        list_name=task_list,
+        task_name=try_parse_as_int(name),
+        file_path=args.file,
+    )
+
+
+def la(args):
+    task_list, name = parse_task_path(args.task_name, getattr(args, "list", None))
+    attachments = wrapper.list_attachments(
+        list_name=task_list,
+        task_name=try_parse_as_int(name),
+    )
+    if not attachments:
+        print("No attachments")
+    else:
+        print_list([str(a) for a in attachments])
+
+
 helptext_task_name = """
         Specify the task.
         Can be one of the following:
@@ -187,6 +242,80 @@ def setup_parser():
     )
     subparser.set_defaults(func=rm)
 
+    # create parser for 'show' command
+    subparser = subparsers.add_parser("show", help="Show task details")
+    subparser.add_argument("task_name", help=helptext_task_name)
+    subparser.add_argument(
+        "-l",
+        "--list",
+        help="Specify the list name explicitly (allows task names with slashes)",
+    )
+    subparser.set_defaults(func=show)
+
+    # create parser for 'update' command
+    subparser = subparsers.add_parser("update", help="Update a task")
+    subparser.add_argument("task_name", help=helptext_task_name)
+    subparser.add_argument(
+        "-l",
+        "--list",
+        help="Specify the list name explicitly (allows task names with slashes)",
+    )
+    subparser.add_argument(
+        "-t",
+        "--title",
+        help="New title for the task",
+    )
+    subparser.add_argument(
+        "-b",
+        "--body",
+        help="Set the task description/notes",
+    )
+    subparser.add_argument(
+        "-I",
+        "--importance",
+        choices=[e.value for e in TaskImportance],
+        help="Set the task importance (low, normal, high)",
+    )
+    subparser.add_argument("-r", "--reminder", help="Set a reminder time")
+    subparser.add_argument("-d", "--due", help="Set a due date/time")
+    subparser.add_argument(
+        "-s",
+        "--status",
+        choices=[e.value for e in TaskStatus],
+        help="Set the task status",
+    )
+    subparser.set_defaults(func=update)
+
+    # create parser for 'rml' command
+    subparser = subparsers.add_parser("rml", help="Remove a list")
+    subparser.add_argument("list_name", help="Name of the list to remove")
+    subparser.set_defaults(func=rml)
+
+    # create parser for 'attach' command
+    subparser = subparsers.add_parser(
+        "attach", help="Add a file attachment to a task (max 3 MB)"
+    )
+    subparser.add_argument("task_name", help=helptext_task_name)
+    subparser.add_argument("file", help="Path to the file to attach")
+    subparser.add_argument(
+        "-l",
+        "--list",
+        help="Specify the list name explicitly (allows task names with slashes)",
+    )
+    subparser.set_defaults(func=attach)
+
+    # create parser for 'la' command (list attachments)
+    subparser = subparsers.add_parser(
+        "la", help="List attachments on a task"
+    )
+    subparser.add_argument("task_name", help=helptext_task_name)
+    subparser.add_argument(
+        "-l",
+        "--list",
+        help="Specify the list name explicitly (allows task names with slashes)",
+    )
+    subparser.set_defaults(func=la)
+
     return parser
 
 
@@ -234,6 +363,12 @@ def main():
                 error_occurred = True
             except InvalidRecurrenceExpression as e:
                 print(e.message)
+                error_occurred = True
+            except ValueError as e:
+                print(str(e))
+                error_occurred = True
+            except FileNotFoundError as e:
+                print(str(e))
                 error_occurred = True
             finally:
                 sys.stdout.flush()

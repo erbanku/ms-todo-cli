@@ -4,7 +4,7 @@
 import unittest
 from datetime import datetime, timezone
 from todocli.models.todolist import TodoList
-from todocli.models.todotask import Task, TaskStatus, TaskImportance
+from todocli.models.todotask import Task, TaskStatus, TaskImportance, TaskBody, Attachment
 
 
 class TestTodoListModel(unittest.TestCase):
@@ -229,6 +229,144 @@ class TestTaskModel(unittest.TestCase):
         task = Task(api_response)
 
         self.assertIsNotNone(task.body_last_modified_datetime)
+
+    def test_task_with_body_content(self):
+        """Test task with body content"""
+        api_response = {
+            "id": "task123",
+            "title": "Task with notes",
+            "importance": "normal",
+            "status": "notStarted",
+            "createdDateTime": "2024-01-25T10:00:00.0000000Z",
+            "lastModifiedDateTime": "2024-01-25T11:00:00.0000000Z",
+            "isReminderOn": False,
+            "body": {
+                "content": "These are my task notes",
+                "contentType": "text",
+            },
+        }
+        task = Task(api_response)
+
+        self.assertIsNotNone(task.body)
+        self.assertEqual(task.body.content, "These are my task notes")
+        self.assertEqual(task.body.content_type, "text")
+        self.assertEqual(str(task.body), "These are my task notes")
+
+    def test_task_without_body(self):
+        """Test task without body"""
+        api_response = {
+            "id": "task123",
+            "title": "Simple task",
+            "importance": "normal",
+            "status": "notStarted",
+            "createdDateTime": "2024-01-25T10:00:00.0000000Z",
+            "lastModifiedDateTime": "2024-01-25T10:00:00.0000000Z",
+            "isReminderOn": False,
+        }
+        task = Task(api_response)
+        self.assertIsNone(task.body)
+
+    def test_task_str_basic(self):
+        """Test task __str__ with minimal fields"""
+        api_response = {
+            "id": "task123",
+            "title": "Buy milk",
+            "importance": "normal",
+            "status": "notStarted",
+            "createdDateTime": "2024-01-25T10:00:00.0000000Z",
+            "lastModifiedDateTime": "2024-01-25T10:00:00.0000000Z",
+            "isReminderOn": False,
+        }
+        task = Task(api_response)
+        output = str(task)
+
+        self.assertIn("Buy milk", output)
+        self.assertIn("notStarted", output)
+        self.assertIn("normal", output)
+
+    def test_task_str_with_body(self):
+        """Test task __str__ includes body notes"""
+        api_response = {
+            "id": "task123",
+            "title": "Buy milk",
+            "importance": "high",
+            "status": "inProgress",
+            "createdDateTime": "2024-01-25T10:00:00.0000000Z",
+            "lastModifiedDateTime": "2024-01-25T10:00:00.0000000Z",
+            "isReminderOn": False,
+            "body": {
+                "content": "From the store",
+                "contentType": "text",
+            },
+        }
+        task = Task(api_response)
+        output = str(task)
+
+        self.assertIn("From the store", output)
+        self.assertIn("Notes:", output)
+
+
+class TestTaskBodyModel(unittest.TestCase):
+    """Test TaskBody model"""
+
+    def test_task_body_creation(self):
+        """Test creating TaskBody from dict"""
+        body = TaskBody({"content": "Hello", "contentType": "text"})
+        self.assertEqual(body.content, "Hello")
+        self.assertEqual(body.content_type, "text")
+
+    def test_task_body_defaults(self):
+        """Test TaskBody with missing fields"""
+        body = TaskBody({})
+        self.assertEqual(body.content, "")
+        self.assertEqual(body.content_type, "text")
+
+    def test_task_body_str(self):
+        """Test TaskBody string representation"""
+        body = TaskBody({"content": "My notes", "contentType": "text"})
+        self.assertEqual(str(body), "My notes")
+
+
+class TestAttachmentModel(unittest.TestCase):
+    """Test Attachment model"""
+
+    def test_attachment_creation(self):
+        """Test creating Attachment from API response"""
+        api_response = {
+            "id": "att123",
+            "name": "document.pdf",
+            "size": 2048,
+            "contentType": "application/pdf",
+        }
+        att = Attachment(api_response)
+
+        self.assertEqual(att.id, "att123")
+        self.assertEqual(att.name, "document.pdf")
+        self.assertEqual(att.size, 2048)
+        self.assertEqual(att.content_type, "application/pdf")
+
+    def test_attachment_str(self):
+        """Test attachment string representation"""
+        api_response = {
+            "id": "att123",
+            "name": "photo.jpg",
+            "size": 1024,
+            "contentType": "image/jpeg",
+        }
+        att = Attachment(api_response)
+        output = str(att)
+
+        self.assertIn("photo.jpg", output)
+        self.assertIn("1.0 KB", output)
+
+    def test_attachment_defaults(self):
+        """Test attachment with minimal fields"""
+        api_response = {"id": "att123"}
+        att = Attachment(api_response)
+
+        self.assertEqual(att.name, "")
+        self.assertEqual(att.size, 0)
+        self.assertEqual(att.content_type, "")
 
 
 if __name__ == "__main__":

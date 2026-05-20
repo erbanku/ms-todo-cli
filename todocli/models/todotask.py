@@ -35,6 +35,15 @@ class DayOfWeek(str, Enum):
     SUNDAY = "sunday"
 
 
+class TaskBody:
+    def __init__(self, body_dict):
+        self.content = body_dict.get("content", "")
+        self.content_type = body_dict.get("contentType", "text")
+
+    def __str__(self):
+        return self.content
+
+
 class Task:
     def __init__(self, query_result):
         self.title = query_result["title"]
@@ -76,3 +85,42 @@ class Task:
             )
         else:
             self.body_last_modified_datetime = None
+
+        body = query_result.get("body")
+        self.body = TaskBody(body) if body else None
+
+    def __str__(self):
+        lines = [f"Title:      {self.title}"]
+        lines.append(f"Status:     {self.status.value}")
+        lines.append(f"Importance: {self.importance.value}")
+        if self.body and self.body.content:
+            lines.append(f"Notes:      {self.body.content}")
+        if self.due_datetime:
+            lines.append(f"Due:        {self.due_datetime.strftime('%Y-%m-%d %H:%M')}")
+        if self.reminder_datetime:
+            lines.append(
+                f"Reminder:   {self.reminder_datetime.strftime('%Y-%m-%d %H:%M')}"
+            )
+        lines.append(
+            f"Created:    {self.created_datetime.strftime('%Y-%m-%d %H:%M')}"
+        )
+        lines.append(
+            f"Modified:   {self.last_modified_datetime.strftime('%Y-%m-%d %H:%M')}"
+        )
+        if self.completed_datetime:
+            lines.append(
+                f"Completed:  {self.completed_datetime.strftime('%Y-%m-%d %H:%M')}"
+            )
+        return "\n".join(lines)
+
+
+class Attachment:
+    def __init__(self, query_result):
+        self.id = query_result["id"]
+        self.name = query_result.get("name", "")
+        self.size = query_result.get("size", 0)
+        self.content_type = query_result.get("contentType", "")
+
+    def __str__(self):
+        size_kb = self.size / 1024
+        return f"{self.name} ({size_kb:.1f} KB)"

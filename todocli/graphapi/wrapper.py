@@ -3,12 +3,14 @@ For implementation details, refer to this source:
 https://docs.microsoft.com/en-us/graph/api/resources/todo-overview?view=graph-rest-1.0
 """
 
+import base64
 import json
+import os
 from datetime import datetime
 from typing import Union
 
 from todocli.models.todolist import TodoList
-from todocli.models.todotask import Task, TaskStatus
+from todocli.models.todotask import Task, TaskStatus, TaskImportance, Attachment
 from todocli.graphapi.oauth import get_oauth_session
 
 from todocli.utils.datetime_util import datetime_to_api_timestamp
@@ -173,6 +175,194 @@ def remove_task(list_name: str, task_name: Union[str, int]):
     list_id = get_list_id_by_name(list_name)
     task_id = get_task_id_by_name(list_name, task_name)
     endpoint = f"{BASE_URL}/{list_id}/tasks/{task_id}"
+    session = get_oauth_session()
+    response = session.delete(endpoint)
+    return True if response.ok else response.raise_for_status()
+
+
+def get_task(
+    list_name: str = None,
+    task_name: Union[str, int] = None,
+    list_id: str = None,
+    task_id: str = None,
+):
+    """Get a single task with full details."""
+    assert (list_name is not None) or (
+        list_id is not None
+    ), "You must provide list_name or list_id"
+    assert (task_name is not None) or (
+        task_id is not None
+    ), "You must provide task_name or task_id"
+
+    if list_id is None:
+        list_id = get_list_id_by_name(list_name)
+    if task_id is None:
+        task_id = get_task_id_by_name(list_name, task_name)
+
+    endpoint = f"{BASE_URL}/{list_id}/tasks/{task_id}"
+    session = get_oauth_session()
+    response = session.get(endpoint)
+    if response.ok:
+        return Task(json.loads(response.content.decode()))
+    response.raise_for_status()
+
+
+def update_task(
+    list_name: str = None,
+    task_name: Union[str, int] = None,
+    list_id: str = None,
+    task_id: str = None,
+    new_title: str = None,
+    body: str = None,
+    importance: str = None,
+    reminder_datetime: datetime = None,
+    due_datetime: datetime = None,
+    status: str = None,
+):
+    """Update an existing task's properties."""
+    assert (list_name is not None) or (
+        list_id is not None
+    ), "You must provide list_name or list_id"
+    assert (task_name is not None) or (
+        task_id is not None
+    ), "You must provide task_name or task_id"
+
+    if list_id is None:
+        list_id = get_list_id_by_name(list_name)
+    if task_id is None:
+        task_id = get_task_id_by_name(list_name, task_name)
+
+    endpoint = f"{BASE_URL}/{list_id}/tasks/{task_id}"
+    request_body = {}
+
+    if new_title is not None:
+        request_body["title"] = new_title
+    if body is not None:
+        request_body["body"] = {"content": body, "contentType": "text"}
+    if importance is not None:
+        request_body["importance"] = TaskImportance(importance).value
+    if reminder_datetime is not None:
+        request_body["reminderDateTime"] = datetime_to_api_timestamp(reminder_datetime)
+        request_body["isReminderOn"] = True
+    if due_datetime is not None:
+        request_body["dueDateTime"] = datetime_to_api_timestamp(due_datetime)
+    if status is not None:
+        request_body["status"] = TaskStatus(status).value
+
+    if not request_body:
+        return True
+
+    session = get_oauth_session()
+    response = session.patch(endpoint, json=request_body)
+    return True if response.ok else response.raise_for_status()
+
+
+def delete_list(list_name: str):
+    """Delete a task list."""
+    list_id = get_list_id_by_name(list_name)
+    endpoint = f"{BASE_URL}/{list_id}"
+    session = get_oauth_session()
+    response = session.delete(endpoint)
+    return True if response.ok else response.raise_for_status()
+
+
+def add_attachment(
+    list_name: str = None,
+    task_name: Union[str, int] = None,
+    list_id: str = None,
+    task_id: str = None,
+    file_path: str = None,
+):
+    """Add a file attachment to a task.
+
+    Uses the taskFileAttachment type from Microsoft Graph API.
+    Files must be under 3 MB.
+    """
+    assert (list_name is not None) or (
+        list_id is not None
+    ), "You must provide list_name or list_id"
+    assert (task_name is not None) or (
+        task_id is not None
+    ), "You must provide task_name or task_id"
+    assert file_path is not None, "You must provide file_path"
+
+    if list_id is None:
+        list_id = get_list_id_by_name(list_name)
+    if task_id is None:
+        task_id = get_task_id_by_name(list_name, task_name)
+
+    file_size = os.path.getsize(file_path)
+    max_size = 3 * 1024 * 1024  # 3 MB limit
+    if file_size > max_size:
+        raise ValueError(
+            f"File size ({file_size / 1024 / 1024:.1f} MB) exceeds the 3 MB limit"
+        )
+
+    file_name = os.path.basename(file_path)
+    with open(file_path, "rb") as f:
+        content_bytes = base64.b64encode(f.read()).decode("utf-8")
+
+    endpoint = f"{BASE_URL}/{list_id}/tasks/{task_id}/attachments"
+    request_body = {
+        "@odata.type": "#microsoft.graph.taskFileAttachment",
+        "name": file_name,
+        "contentBytes": content_bytes,
+        "contentType": "application/octet-stream",
+    }
+
+    session = get_oauth_session()
+    response = session.post(endpoint, json=request_body)
+    return True if response.ok else response.raise_for_status()
+
+
+def list_attachments(
+    list_name: str = None,
+    task_name: Union[str, int] = None,
+    list_id: str = None,
+    task_id: str = None,
+):
+    """List all attachments on a task."""
+    assert (list_name is not None) or (
+        list_id is not None
+    ), "You must provide list_name or list_id"
+    assert (task_name is not None) or (
+        task_id is not None
+    ), "You must provide task_name or task_id"
+
+    if list_id is None:
+        list_id = get_list_id_by_name(list_name)
+    if task_id is None:
+        task_id = get_task_id_by_name(list_name, task_name)
+
+    endpoint = f"{BASE_URL}/{list_id}/tasks/{task_id}/attachments"
+    session = get_oauth_session()
+    response = session.get(endpoint)
+    response_value = parse_response(response)
+    return [Attachment(x) for x in response_value]
+
+
+def delete_attachment(
+    list_name: str = None,
+    task_name: Union[str, int] = None,
+    attachment_id: str = None,
+    list_id: str = None,
+    task_id: str = None,
+):
+    """Delete an attachment from a task."""
+    assert (list_name is not None) or (
+        list_id is not None
+    ), "You must provide list_name or list_id"
+    assert (task_name is not None) or (
+        task_id is not None
+    ), "You must provide task_name or task_id"
+    assert attachment_id is not None, "You must provide attachment_id"
+
+    if list_id is None:
+        list_id = get_list_id_by_name(list_name)
+    if task_id is None:
+        task_id = get_task_id_by_name(list_name, task_name)
+
+    endpoint = f"{BASE_URL}/{list_id}/tasks/{task_id}/attachments/{attachment_id}"
     session = get_oauth_session()
     response = session.delete(endpoint)
     return True if response.ok else response.raise_for_status()

@@ -145,6 +145,103 @@ class TestCLIArgumentParsing(unittest.TestCase):
         self.assertEqual(args.task_name, "task")
         self.assertEqual(args.list, "work")
 
+    def test_show_command_basic(self):
+        """Test 'show' command"""
+        args = self.parser.parse_args(["show", "buy milk"])
+        self.assertEqual(args.task_name, "buy milk")
+        self.assertIsNone(getattr(args, "list", None))
+
+    def test_show_command_with_list(self):
+        """Test 'show' command with --list flag"""
+        args = self.parser.parse_args(["show", "--list", "personal", "buy milk"])
+        self.assertEqual(args.task_name, "buy milk")
+        self.assertEqual(args.list, "personal")
+
+    def test_update_command_basic(self):
+        """Test 'update' command with task name only"""
+        args = self.parser.parse_args(["update", "buy milk"])
+        self.assertEqual(args.task_name, "buy milk")
+        self.assertIsNone(args.title)
+        self.assertIsNone(args.body)
+        self.assertIsNone(args.importance)
+        self.assertIsNone(args.reminder)
+        self.assertIsNone(args.due)
+        self.assertIsNone(args.status)
+
+    def test_update_command_with_title(self):
+        """Test 'update' command with -t flag"""
+        args = self.parser.parse_args(["update", "-t", "new title", "buy milk"])
+        self.assertEqual(args.title, "new title")
+
+    def test_update_command_with_body(self):
+        """Test 'update' command with -b flag"""
+        args = self.parser.parse_args(["update", "-b", "my notes", "buy milk"])
+        self.assertEqual(args.body, "my notes")
+
+    def test_update_command_with_importance(self):
+        """Test 'update' command with -I flag"""
+        args = self.parser.parse_args(["update", "-I", "high", "buy milk"])
+        self.assertEqual(args.importance, "high")
+
+    def test_update_command_with_status(self):
+        """Test 'update' command with -s flag"""
+        args = self.parser.parse_args(["update", "-s", "inProgress", "buy milk"])
+        self.assertEqual(args.status, "inProgress")
+
+    def test_update_command_with_all_flags(self):
+        """Test 'update' command with all flags"""
+        args = self.parser.parse_args(
+            [
+                "update",
+                "-l", "personal",
+                "-t", "new title",
+                "-b", "notes here",
+                "-I", "high",
+                "-r", "9:00",
+                "-d", "tomorrow",
+                "-s", "inProgress",
+                "buy milk",
+            ]
+        )
+        self.assertEqual(args.task_name, "buy milk")
+        self.assertEqual(args.list, "personal")
+        self.assertEqual(args.title, "new title")
+        self.assertEqual(args.body, "notes here")
+        self.assertEqual(args.importance, "high")
+        self.assertEqual(args.reminder, "9:00")
+        self.assertEqual(args.due, "tomorrow")
+        self.assertEqual(args.status, "inProgress")
+
+    def test_rml_command(self):
+        """Test 'rml' command"""
+        args = self.parser.parse_args(["rml", "shopping"])
+        self.assertEqual(args.list_name, "shopping")
+
+    def test_attach_command(self):
+        """Test 'attach' command"""
+        args = self.parser.parse_args(["attach", "buy milk", "/tmp/file.pdf"])
+        self.assertEqual(args.task_name, "buy milk")
+        self.assertEqual(args.file, "/tmp/file.pdf")
+
+    def test_attach_command_with_list(self):
+        """Test 'attach' command with -l flag"""
+        args = self.parser.parse_args(
+            ["attach", "-l", "personal", "buy milk", "/tmp/file.pdf"]
+        )
+        self.assertEqual(args.list, "personal")
+        self.assertEqual(args.task_name, "buy milk")
+        self.assertEqual(args.file, "/tmp/file.pdf")
+
+    def test_la_command(self):
+        """Test 'la' command"""
+        args = self.parser.parse_args(["la", "buy milk"])
+        self.assertEqual(args.task_name, "buy milk")
+
+    def test_la_command_with_list(self):
+        """Test 'la' command with -l flag"""
+        args = self.parser.parse_args(["la", "-l", "personal", "buy milk"])
+        self.assertEqual(args.list, "personal")
+
     def test_interactive_flag(self):
         """Test -i/--interactive flag"""
         args = self.parser.parse_args(["-i", "ls"])

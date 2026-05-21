@@ -11,10 +11,12 @@ SYNOPSIS
         lst <list_name>     Display all tasks from list
             list_name       Name of the list
 
-        new <task> [-r time]
+        new <task> [-r time] [-d time] [-R recurrence]
                             Create a new task
             task            Task to create. See 'Specifying a task' for details.
             -r time         Set a reminder. See 'Specifying time' for details.              
+            -d time         Set a due date. See 'Specifying time' for details.
+            -R recurrence   Set recurrence (daily, weekly, monthly, yearly).
 
         newl <list_name>    Create a new list
             list_name       Name of the list
@@ -24,6 +26,31 @@ SYNOPSIS
 
         rm <task>           Remove a task
             task            Task to remove. See 'Specifying a task' for details.
+
+        show <task>         Show task details (title, body, importance, dates)
+            task            Task to show. See 'Specifying a task' for details.
+
+        update <task> [-t title] [-b body] [-I importance] [-r time] [-d time] [-s status]
+                            Update a task's properties
+            task            Task to update. See 'Specifying a task' for details.
+            -t title        Set new title
+            -b body         Set description/notes
+            -I importance   Set importance (low, normal, high)
+            -r time         Set a reminder. See 'Specifying time' for details.
+            -d time         Set a due date. See 'Specifying time' for details.
+            -s status       Set status (notStarted, inProgress, completed,
+                            waitingOnOthers, deferred)
+
+        rml <list_name>     Remove a list
+            list_name       Name of the list to remove
+
+        attach <task> <file>
+                            Attach a file to a task (max 3 MB)
+            task            Task to attach file to. See 'Specifying a task' for details.
+            file            Path to the file to attach
+
+        la <task>           List attachments on a task
+            task            Task to list attachments for.
 
 OPTIONS
     -h, --help
@@ -39,6 +66,8 @@ Specifying a task:
 
     If 'list_name' is omitted, the default task list will be used. 
     'task_number' is the position displayed when specifying option '-n'. 
+
+    Use --list (-l) flag to specify the list explicitly, allowing task names with slashes.
 
 Specifying time:
     For options which take 'time' as a parameter, 'time' can be one of the following:
